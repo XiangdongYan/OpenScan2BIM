@@ -1,0 +1,29 @@
+{
+  "run_id": "R02_door_cuts_all_stations",
+  "parent": "R01_qwen_cyclic_option_orders",
+  "change_vs_parent": "door cuts: Station 5 only, no guard -> all stations with the orientation guard (Framework v0.1 Section 1.2, without the size envelope)",
+  "description": "Door instances of Grounded-SAM cut or mark door patches on every station; only vertical or inclined host patches may be cut. The s03 cannot-link keeps door candidates from merging with non-door patches. Everything else equals R01.",
+  "python": {
+    "cpu": "D:/Anaconda/python",
+    "qwen": "D:/Anaconda/envs/qwen_vl_pilot/python"
+  },
+  "region": "Level02Lab",
+  "stations": ["2ndLab-5", "2ndLab-6", "2ndLab-7"],
+  "stage0_dir": "data/stage0_pano_gsam_level02lab",
+  "e57_dir": "assets/Level02Lab",
+  "gt": {
+    "labels_dir": "gt/dev_station5_6_7/point_labels_v02",
+    "cloud_dir": "gt/dev_station5_6_7/annotation_cloud"
+  },
+  "params": {
+    "door_cut_stations": ["2ndLab-5", "2ndLab-6", "2ndLab-7"],
+    "door_cut_guard": "orientation",
+    "clearance_m": 2.30,
+    "qwen_model_id": "Qwen/Qwen3-VL-8B-Instruct",
+    "qwen_max_image_px": 1024,
+    "qwen_option_orders": "cyclic",
+    "final_config": {},
+    "floor_band_m": 0.05,
+    "propagation_m": 0.05
+  }
+}

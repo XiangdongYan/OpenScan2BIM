@@ -7,6 +7,21 @@ stage writes one atomic directory for all stations: stations listed in
 files (patch ids, patch table, point quality), as the legacy
 outputs216_door_integrated_inputs/atomic did.
 
+--door_guard (Framework v0.1 Section 1.2, door cuts v02) decides whether a door
+instance may mark or cut a patch:
+  none                  legacy v01 rule (R00, R01)
+  orientation           the host patch is vertical or inclined, so a 2D mask that
+                        bleeds onto the floor or ceiling cannot cut it
+  orientation_envelope  in addition the door points of the patch span at most
+                        2.6 m vertically and 2.2 m in-plane horizontally (robust
+                        p02-p98) and their p02 height lies within 0.15 m of the
+                        region floor z_f (limits of the Final door rule,
+                        lib/final_policy.py). The 2026-10-30 dry run showed that
+                        this rejects fragments of genuine but fragmented door leaves.
+z_f is the lowest broad horizontal band of the atomic patches pooled over all
+--stations (the s03/s04b band rule applied to patches), because s02 runs before
+the region references exist; it is also used to log each patch's door bottom.
+
 Legacy description: door-only semantic-boundary preservation for Step01b
 atomic patches.
 
@@ -26,6 +41,8 @@ import numpy as np
 import pandas as pd
 from plyfile import PlyData
 
+import lib.final_policy as door_limits
+from s03_local_surfaces import attach_station_elevation_bands
 from s01_atomic_patches import (
     VOXEL,
     classify_patch,
@@ -48,6 +65,7 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="Door-only preservation of atomic planar patches")
     parser.add_argument("--stations", nargs="+", required=True)
     parser.add_argument("--door_cut_stations", nargs="*", default=[])
+    parser.add_argument("--door_guard", required=True, choices=("none", "orientation", "orientation_envelope"))
     parser.add_argument("--pano_dir", required=True)
     parser.add_argument("--atomic_dir", required=True, help="s01 output")
     parser.add_argument("--output_dir", required=True)
@@ -128,8 +146,40 @@ def describe_patch(source_row, point_indices, points, point_weight, ghost, statu
     return row
 
 
-def cut_station(station, pano_dir, atomic_dir, output_dir):
-    """Legacy main body: cut the door children of one station into output_dir."""
+def region_floor_reference(stations, atomic_dir):
+    """Lowest broad horizontal band of the pooled atomic patches (same band rule as s03/s04b)."""
+    rows = []
+    for station in stations:
+        for r in pd.read_csv(atomic_dir / f"{station}_patches.csv").itertuples():
+            rows.append({"surface_id": f"{station}:{r.patch_id}", "planar_orientation": r.planar_orientation,
+                         "area_m2": r.area_m2, "z_ref_m": r.z_mean})
+    bands = attach_station_elevation_bands(rows)
+    return float(next(b["z_ref_m"] for b in bands if b["role"] == "floor_reference"))
+
+
+def door_guard(door_points, source_row, z_f, mode):
+    """(passed, reason, measurements) of the v02 orientation guard and, optionally, the door envelope."""
+    normal = np.array([source_row["nx"], source_row["ny"], source_row["nz"]], dtype=float)
+    horizontal = np.cross([0.0, 0.0, 1.0], normal)
+    horizontal /= max(np.linalg.norm(horizontal), 1e-12)
+    z02, z98 = np.percentile(door_points[:, 2], [2, 98])
+    w02, w98 = np.percentile(door_points @ horizontal, [2, 98])
+    measured = {"door_span_m": round(float(z98 - z02), 3), "door_width_m": round(float(w98 - w02), 3),
+                "door_bottom_above_floor_m": round(float(z02 - z_f), 3)}
+    if source_row["planar_orientation"] not in ("vertical", "inclined"):
+        return False, "rejected_orientation", measured
+    if mode == "orientation_envelope" and (measured["door_span_m"] > door_limits.MAX_DOOR_VERTICAL_SPAN_M
+            or measured["door_width_m"] > door_limits.MAX_DOOR_WIDTH_M
+            or abs(measured["door_bottom_above_floor_m"]) > door_limits.DOOR_BOTTOM_TOLERANCE_M):
+        return False, "rejected_envelope", measured
+    return True, "", measured
+
+
+def cut_station(station, pano_dir, atomic_dir, output_dir, guard="none", z_f=None):
+    """Legacy main body: cut the door children of one station into output_dir.
+
+    Unless guard is "none", the v02 guards decide first whether a door instance may act on a patch.
+    """
     ply_path = pano_dir / station / f"{station}_pano_labeled.ply"
     metadata = pd.read_csv(pano_dir / station / f"{station}_pano_metadata.csv")
     valid_door_instances = set(
@@ -161,7 +211,11 @@ def cut_station(station, pano_dir, atomic_dir, output_dir):
             door_area, _ = occupancy_and_hull_area(points[door_indices], normal, VOXEL)
             action = "insufficient_support"
             child_id = 0
-            if fraction >= WHOLE_PATCH_MIN_DOOR_FRACTION:
+            passed, reason, measured = (True, "", {}) if guard == "none" else door_guard(
+                points[door_indices], source_row, z_f, guard)
+            if not passed:
+                action = reason
+            elif fraction >= WHOLE_PATCH_MIN_DOOR_FRACTION:
                 whole_candidates.setdefault(patch_id, set()).add(door_instance)
                 action = "preserve_whole_patch"
             elif (fraction >= SPLIT_MIN_DOOR_FRACTION
@@ -182,6 +236,7 @@ def cut_station(station, pano_dir, atomic_dir, output_dir):
                 "door_area_m2": round(door_area, 4),
                 "action": action,
                 "door_child_patch_id": child_id,
+                **measured,
             })
 
     split_parents = {spec[0] for spec in split_specs}
@@ -251,6 +306,14 @@ def cut_station(station, pano_dir, atomic_dir, output_dir):
             "split_min_door_area_m2": SPLIT_MIN_DOOR_AREA_M2,
         },
         "not_a_final_class": True,
+        "door_guard": guard,
+        "door_guard_limits": None if guard == "none" else {
+            "region_floor_reference_z_m": z_f,
+            "host_orientation": ["vertical", "inclined"],
+            **({"max_vertical_span_m": door_limits.MAX_DOOR_VERTICAL_SPAN_M,
+                "max_in_plane_width_m": door_limits.MAX_DOOR_WIDTH_M,
+                "bottom_tolerance_m": door_limits.DOOR_BOTTOM_TOLERANCE_M} if guard == "orientation_envelope" else {}),
+        },
     }
     (output_dir / f"{station}_door_preservation_manifest.json").write_text(
         json.dumps(manifest, indent=2), encoding="utf-8")
@@ -276,14 +339,17 @@ def main(argv=None):
     if unknown:
         raise ValueError(f"door-cut stations not in --stations: {sorted(unknown)}")
     output_dir.mkdir(parents=True)
+    z_f = region_floor_reference(args.stations, Path(args.atomic_dir)) if args.door_guard != "none" else None
     for station in args.stations:
         if station in args.door_cut_stations:
-            cut_station(station, Path(args.pano_dir), Path(args.atomic_dir), output_dir)
+            cut_station(station, Path(args.pano_dir), Path(args.atomic_dir), output_dir, args.door_guard, z_f)
         else:
             link_station(station, Path(args.atomic_dir), output_dir)
     (output_dir / "door_cut_manifest.json").write_text(json.dumps({
         "stations": args.stations,
         "door_cut_stations": args.door_cut_stations,
+        "door_guard": args.door_guard,
+        "region_floor_reference_z_m": z_f,
         "other_stations": "hard links (copies if linking fails) to the s01 patch ids, patch table and point quality",
         "source_atomic_dir": args.atomic_dir,
     }, indent=2), encoding="utf-8")

@@ -54,6 +54,7 @@ def stages(cfg, run):
         ("s01_atomic_patches", "cpu", [["--ply", f"{stage0}/{s}/{s}_pano_labeled.ply", "--e57", f"{e57}/{s}.e57",
                                         "--output_dir", d["s01_atomic_patches"]] for s in st]),
         ("s02_door_cuts", "cpu", [["--stations", *st, "--door_cut_stations", *prm["door_cut_stations"],
+                                   "--door_guard", prm["door_cut_guard"],
                                    "--pano_dir", stage0, "--atomic_dir", d["s01_atomic_patches"],
                                    "--output_dir", d["s02_door_cuts"]]]),
         ("s03_local_surfaces", "cpu", [["--station", s, "--pano_dir", stage0, "--primitives_dir", d["s02_door_cuts"],

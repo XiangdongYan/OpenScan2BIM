@@ -17,6 +17,7 @@
   },
   "params": {
     "door_cut_stations": ["2ndLab-5"],
+    "door_cut_guard": "none",
     "clearance_m": 2.30,
     "qwen_model_id": "Qwen/Qwen3-VL-8B-Instruct",
     "qwen_max_image_px": 1024,
