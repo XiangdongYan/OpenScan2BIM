@@ -37,6 +37,8 @@ def parse_args(argv=None):
     p.add_argument("--pred_dir", required=True, help="<station>_pred_class.npy, optional _element_id / _label_source")
     p.add_argument("--cloud_dir", required=True, help="GT annotation cloud (gt/.../annotation_cloud)")
     p.add_argument("--boundary_cm", type=int, default=2)
+    p.add_argument("--pano_dir", required=True,
+                   help="Stage-0 directory; overrides the pano_dir recorded in the GT manifest (old outputs18)")
     p.add_argument("--output_dir", required=True)
     return p.parse_args(argv)
 
@@ -143,6 +145,7 @@ def main(argv=None):
         raise FileExistsError(f"Refusing to overwrite existing output directory: {out}")
     pred_dir = Path(args.pred_dir)
     manifest = json.loads((Path(args.cloud_dir) / "manifest.json").read_text(encoding="utf-8"))
+    manifest["pano_dir"] = args.pano_dir
     rep_keys = np.load(Path(args.cloud_dir) / "rep_voxel_keys.npy")
     stations = manifest["stations"]
     pred_summary = next(iter(sorted(pred_dir.glob("*summary*.json"))), None)

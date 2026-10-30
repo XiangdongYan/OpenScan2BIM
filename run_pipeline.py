@@ -91,11 +91,11 @@ def stages(cfg, run):
                                       "--final_csv", f"{d['s09_final']}/element_semantic_final.csv",
                                       "--pano_dir", stage0, "--floor_band_m", str(prm["floor_band_m"]),
                                       "--propagation_m", str(prm["propagation_m"]), "--output_dir", d["s10_point_labels"]]]),
-        ("s11_evaluate", "cpu", [["--gt_dir", gt["labels_dir"], "--cloud_dir", gt["cloud_dir"],
+        ("s11_evaluate", "cpu", [["--gt_dir", gt["labels_dir"], "--cloud_dir", gt["cloud_dir"], "--pano_dir", stage0,
                                   "--pred_dir", d["s10_point_labels"], "--output_dir", d["s11_evaluate"]]]),
         ("s11b_error_attribution", "cpu", [["--pred_dir", d["s10_point_labels"], "--eval_dir", d["s11_evaluate"],
                                             "--score_csv", f"{d['s08_qwen_scoring']}/station_image_semantic_scores.csv",
-                                            "--gt_dir", gt["labels_dir"], "--cloud_dir", gt["cloud_dir"],
+                                            "--gt_dir", gt["labels_dir"], "--cloud_dir", gt["cloud_dir"], "--pano_dir", stage0,
                                             "--output_dir", d["s11b_error_attribution"]]]),
     ]
 

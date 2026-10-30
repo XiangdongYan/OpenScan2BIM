@@ -35,6 +35,8 @@ def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--annotated_ply", required=True)
     p.add_argument("--cloud_dir", required=True)
+    p.add_argument("--pano_dir", required=True,
+                   help="Stage-0 directory; overrides the pano_dir recorded in the GT manifest (old outputs18)")
     p.add_argument("--class_field", default="class")
     p.add_argument("--output_dir", required=True)
     return p.parse_args(argv)
@@ -61,6 +63,7 @@ def main(argv=None):
     if out.exists():
         raise FileExistsError(f"Refusing to overwrite existing output directory: {out}")
     manifest = json.loads((cloud_dir / "manifest.json").read_text(encoding="utf-8"))
+    manifest["pano_dir"] = args.pano_dir
     rep_keys = np.load(cloud_dir / "rep_voxel_keys.npy")
     n_rep = len(rep_keys)
 

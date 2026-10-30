@@ -33,6 +33,8 @@ def parse_args(argv=None):
     p.add_argument("--score_csv", required=True, help="s08 station_image_semantic_scores.csv")
     p.add_argument("--gt_dir", required=True)
     p.add_argument("--cloud_dir", required=True)
+    p.add_argument("--pano_dir", required=True,
+                   help="Stage-0 directory; overrides the pano_dir recorded in the GT manifest (old outputs18)")
     p.add_argument("--output_dir", required=True)
     return p.parse_args(argv)
 
@@ -44,6 +46,7 @@ def main(argv=None):
         raise FileExistsError(f"Refusing to overwrite existing output directory: {out}")
     pred_dir, gt_dir, cloud = Path(args.pred_dir), Path(args.gt_dir), Path(args.cloud_dir)
     manifest = json.loads((cloud / "manifest.json").read_text(encoding="utf-8"))
+    manifest["pano_dir"] = args.pano_dir
     rep_keys = np.load(cloud / "rep_voxel_keys.npy")
     pur = pd.read_csv(Path(args.eval_dir) / "element_purity.csv")
     sc = pd.read_csv(args.score_csv)
