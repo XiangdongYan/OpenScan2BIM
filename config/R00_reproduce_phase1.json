@@ -1,0 +1,27 @@
+{
+  "run_id": "R00_reproduce_phase1",
+  "parent": null,
+  "change_vs_parent": "none: reproduces the Phase-1 configuration with the consolidated pipeline and fresh Qwen scores",
+  "description": "Regression baseline. Door cuts on Station 5 only (as in outputs210/216); Step01c v16 code for every station; per-station references (clearance 2.30 m) for the geometry card; region references for Final and point labels; Final v07 joint (lib/final_policy DEFAULT_CONFIG); Layer 3 with 5 cm propagation. Compare against docs/reference_results/phase1_2026-10-29.",
+  "python": {
+    "cpu": "D:/Anaconda/python",
+    "qwen": "D:/Anaconda/envs/qwen_vl_pilot/python"
+  },
+  "region": "Level02Lab",
+  "stations": ["2ndLab-5", "2ndLab-6", "2ndLab-7"],
+  "stage0_dir": "data/stage0_pano_gsam_level02lab",
+  "e57_dir": "assets/Level02Lab",
+  "gt": {
+    "labels_dir": "gt/dev_station5_6_7/point_labels_v02",
+    "cloud_dir": "gt/dev_station5_6_7/annotation_cloud"
+  },
+  "params": {
+    "door_cut_stations": ["2ndLab-5"],
+    "clearance_m": 2.30,
+    "qwen_model_id": "Qwen/Qwen3-VL-8B-Instruct",
+    "qwen_max_image_px": 1024,
+    "final_config": {},
+    "floor_band_m": 0.05,
+    "propagation_m": 0.05
+  }
+}
