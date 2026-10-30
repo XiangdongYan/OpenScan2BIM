@@ -1,0 +1,28 @@
+{
+  "run_id": "R01_qwen_cyclic_option_orders",
+  "parent": "R00_reproduce_phase1",
+  "change_vs_parent": "qwen_option_orders: seeded_single -> cyclic (Stage-1 and Stage-2 probabilities averaged over the eight cyclic shifts of the class list)",
+  "description": "Removes the dependence of the Qwen probabilities on one record-id-seeded option order (and hence on element numbering). Everything else equals R00.",
+  "python": {
+    "cpu": "D:/Anaconda/python",
+    "qwen": "D:/Anaconda/envs/qwen_vl_pilot/python"
+  },
+  "region": "Level02Lab",
+  "stations": ["2ndLab-5", "2ndLab-6", "2ndLab-7"],
+  "stage0_dir": "data/stage0_pano_gsam_level02lab",
+  "e57_dir": "assets/Level02Lab",
+  "gt": {
+    "labels_dir": "gt/dev_station5_6_7/point_labels_v02",
+    "cloud_dir": "gt/dev_station5_6_7/annotation_cloud"
+  },
+  "params": {
+    "door_cut_stations": ["2ndLab-5"],
+    "clearance_m": 2.30,
+    "qwen_model_id": "Qwen/Qwen3-VL-8B-Instruct",
+    "qwen_max_image_px": 1024,
+    "qwen_option_orders": "cyclic",
+    "final_config": {},
+    "floor_band_m": 0.05,
+    "propagation_m": 0.05
+  }
+}

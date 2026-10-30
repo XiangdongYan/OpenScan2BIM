@@ -286,3 +286,24 @@ def joint_prompt(row, evidence, class_order):
         f"{evidence_text}\n\nQuantitative metric geometry:\n{metric_geometry_text(row)}\n\nOptions:\n"
         f"{options_text(class_order)}\n\nAnswer with only the option letter."
     )
+
+
+# ── option-order averaging (pipeline, 2026-10-30, run R01) ──
+
+def cyclic_option_orders():
+    """The cyclic shifts of SEMANTIC_CLASSES: every class takes every option letter exactly once."""
+    base = list(SEMANTIC_CLASSES)
+    return [base[k:] + base[:k] for k in range(len(base))]
+
+
+def score_over_orders(processor, model, option_token_ids, image, make_prompt, orders):
+    """Class probabilities of one prompt for each option order, and their mean over the orders."""
+    per_order = np.array([
+        score_prompt(processor, model, option_token_ids, image, make_prompt(order), order) for order in orders
+    ])
+    return per_order.mean(axis=0), per_order
+
+
+def order_agreement(per_order, mean):
+    """Share of option orders whose top-1 class equals the top-1 of the mean probabilities."""
+    return float((per_order.argmax(axis=1) == mean.argmax()).mean())

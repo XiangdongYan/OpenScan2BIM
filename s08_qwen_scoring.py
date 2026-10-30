@@ -8,6 +8,14 @@ legacy reuse of earlier score tables (frozen score/record directories) is
 removed, so every record is scored by this code in this run. The scoring path
 is the legacy `new_two_stage` path unchanged. An interrupted run resumes from
 the per-record checkpoints in the same output directory.
+
+--option_orders (run R01, 2026-10-30) sets how the eight answer options are ordered:
+  seeded_single  one order shuffled with a seed from the record id (legacy; R00)
+  cyclic         the eight cyclic shifts of the class list, so every class takes
+                 every option letter once; Stage-1 and Stage-2 probabilities are
+                 the means over the eight orders, and *_order_agreement gives the
+                 share of orders whose top-1 equals the top-1 of the mean.
+The Stage-1 evidence prompt carries no options and is generated once per record.
 """
 
 import argparse
@@ -19,9 +27,9 @@ import pandas as pd
 import torch
 
 from lib.qwen_scoring import (
-    EVIDENCE_FIELDS, SEMANTIC_CLASSES, add_probability_fields, class_order_for, generate_evidence,
-    image_only_prompt, joint_prompt, json_default, load_model, metric_geometry_text, parse_evidence,
-    resize_image, score_prompt,
+    EVIDENCE_FIELDS, SEMANTIC_CLASSES, add_probability_fields, class_order_for, cyclic_option_orders,
+    generate_evidence, image_only_prompt, joint_prompt, json_default, load_model, metric_geometry_text,
+    order_agreement, parse_evidence, resize_image, score_over_orders,
 )
 
 
@@ -37,6 +45,7 @@ def parse_args(argv=None):
     parser.add_argument("--output_dir", required=True)
     parser.add_argument("--model_id", default=MODEL_ID)
     parser.add_argument("--max_image_px", type=int, default=1024)
+    parser.add_argument("--option_orders", required=True, choices=("seeded_single", "cyclic"))
     return parser.parse_args(argv)
 
 
@@ -111,10 +120,12 @@ def main(argv=None):
             if processor is None:
                 processor, model, option_token_ids = load_model(args.model_id)
             image = resize_image(Path(row["rectilinear_overlay_path"]), args.max_image_px)
-            class_order = class_order_for(str(row["station_element_evidence_id"]))
-            image_probabilities = score_prompt(
-                processor, model, option_token_ids, image,
-                image_only_prompt(class_order), class_order,
+            if args.option_orders == "cyclic":
+                orders = cyclic_option_orders()
+            else:
+                orders = [class_order_for(str(row["station_element_evidence_id"]))]
+            image_probabilities, image_per_order = score_over_orders(
+                processor, model, option_token_ids, image, image_only_prompt, orders,
             )
             evidence_raw = ""
             evidence = None
@@ -127,17 +138,20 @@ def main(argv=None):
                 evidence = fallback_evidence()
             result.update({
                 "semantic_taxonomy": "|".join(CLASSES),
-                "qwen_option_order": "|".join(class_order),
+                "qwen_option_order": ("|".join(orders[0]) if len(orders) == 1
+                                      else f"cyclic{len(orders)}:" + "|".join(orders[0])),
                 "stage1_evidence_raw": evidence_raw,
                 **evidence,
             })
             add_probability_fields(result, "rectilinear_image", image_probabilities)
 
-            joint = score_prompt(
+            joint, joint_per_order = score_over_orders(
                 processor, model, option_token_ids, image,
-                joint_prompt(row, evidence, class_order), class_order,
+                lambda order: joint_prompt(row, evidence, order), orders,
             )
             add_probability_fields(result, "joint", joint)
+            result["rectilinear_image_order_agreement"] = order_agreement(image_per_order, image_probabilities)
+            result["joint_order_agreement"] = order_agreement(joint_per_order, joint)
 
             result.update({
                 "record_version": "pipeline_s08_qwen_scoring",
@@ -176,6 +190,7 @@ def main(argv=None):
         "counts": counts,
         "model_id": args.model_id,
         "max_image_px": args.max_image_px,
+        "option_orders": args.option_orders,
         "semantic_classes": list(CLASSES),
         "external_final_policy_applied": False,
         "interpretation_limit": "Uncalibrated Qwen probabilities; the Final policy (s09) applies geometry constraints.",

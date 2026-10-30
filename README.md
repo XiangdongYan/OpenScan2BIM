@@ -47,7 +47,7 @@ recorded in `runs/RUNS.md`.
 | `s06a_station_projection` | 2 inputs | Panorama evidence per station-element | Step04d_StationElementProjection01 |
 | `s06b_rectilinear_views` | 2 inputs | Rectilinear views and metric geometry | Step04d_RectilinearElementProjection05 |
 | `s07_area_metrics` | 2.1 | Deduplicated areas | Step04e_ElementAreaMetrics02 |
-| `s08_qwen_scoring` | 2.2 | Qwen3-VL Stage 1 + Stage 2, every record scored in the run | Step05c_RectilinearMetricJointScoring09 (reuse removed) |
+| `s08_qwen_scoring` | 2.2 | Qwen3-VL Stage 1 + Stage 2, every record scored in the run; `--option_orders` = `seeded_single` (legacy, R00) or `cyclic` (mean over the 8 cyclic option orders, R01) | Step05c_RectilinearMetricJointScoring09 (reuse removed) |
 | `s09_final` | 2.3 | Element Final policy (`lib/final_policy.py`) | Step05d_ElementSemanticFinal07 + SceneGeometryConstraint10 |
 | `s10_point_labels` | 3 | Point labels, upper split, residual completion | Step06_PointLabels01 |
 | `s11_evaluate` | eval | Dev metrics against the point GT | evaluate_semantic_point_gt02 |
@@ -58,7 +58,8 @@ definitions from the legacy modules named in each file's docstring:
 `scan_geometry`, `panorama`, `rectilinear`, `qwen_scoring`, `final_policy`.
 
 `tools/` holds GT construction (`gt_make_annotation_cloud`,
-`gt_transfer_labels`) and one-off verification scripts.
+`gt_transfer_labels`), `compare_runs.py` (a run against its parent) and
+one-off verification scripts.
 
 ## Environments
 

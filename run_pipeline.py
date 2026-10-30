@@ -83,6 +83,7 @@ def stages(cfg, run):
                                        "--element_record_dir", d["s05c_element_records"],
                                        "--area_dir", d["s07_area_metrics"], "--model_id", prm["qwen_model_id"],
                                        "--max_image_px", str(prm["qwen_max_image_px"]),
+                                       "--option_orders", prm["qwen_option_orders"],
                                        "--output_dir", d["s08_qwen_scoring"]]]),
         ("s09_final", "cpu", [["--score_dir", d["s08_qwen_scoring"], "--region_refs", region_refs,
                                "--config", json.dumps(prm["final_config"]), "--output_dir", d["s09_final"]]]),

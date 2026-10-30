@@ -20,6 +20,7 @@
     "clearance_m": 2.30,
     "qwen_model_id": "Qwen/Qwen3-VL-8B-Instruct",
     "qwen_max_image_px": 1024,
+    "qwen_option_orders": "seeded_single",
     "final_config": {},
     "floor_band_m": 0.05,
     "propagation_m": 0.05
